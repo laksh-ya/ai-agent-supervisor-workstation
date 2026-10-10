@@ -1,0 +1,19 @@
+{
+  "name": "ai-agent-supervisor-workstation",
+  "private": true,
+  "description": "Real-time console for supervising AI customer-service agents",
+  "scripts": {
+    "setup": "npm install && npm --prefix backend install && npm --prefix frontend install && npm --prefix testing install",
+    "dev": "concurrently -n api,web -c magenta,cyan \"npm --prefix backend run dev:local\" \"npm --prefix frontend start\"",
+    "seed": "npm --prefix backend run seed:local",
+    "test": "npm --prefix testing test",
+    "sync:engine": "node scripts/sync-engine.js"
+  },
+  "dependencies": {
+    "@chakra-ui/icons": "^2.2.4",
+    "helmet": "^8.1.0"
+  },
+  "devDependencies": {
+    "concurrently": "^9.0.1"
+  }
+}

@@ -1,0 +1,19 @@
+{
+  "watch": [
+    "*.js",
+    "routes",
+    "models",
+    "services",
+    "utils",
+    "websocket",
+    "middleware",
+    "swagger.json"
+  ],
+  "ignore": [
+    ".data/**",
+    "node_modules/**"
+  ],
+  "ext": "js,json",
+  "signal": "SIGTERM",
+  "delay": 800
+}

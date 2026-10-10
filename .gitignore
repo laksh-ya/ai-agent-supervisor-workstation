@@ -1,0 +1,22 @@
+# Dependencies and build output
+node_modules/
+build/
+.vercel/
+
+# Local data and test output
+backend/.data/
+testing/test-screenshots/
+
+# Environment files (examples are tracked)
+.env
+.env.*
+!.env.example
+
+# Source material not part of the project
+*.docx
+docs/CHALLENGE_README.md
+
+# OS and editor files
+.DS_Store
+~$*
+*.log

@@ -1,0 +1,6 @@
+{
+  "framework": "create-react-app",
+  "buildCommand": "REACT_APP_DATA_SOURCE=browser npm run build",
+  "outputDirectory": "build",
+  "rewrites": [{ "source": "/(.*)", "destination": "/index.html" }]
+}

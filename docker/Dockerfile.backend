@@ -1,0 +1,16 @@
+FROM node:18-alpine
+
+WORKDIR /app
+
+# mongodb-memory-server is only for running without Docker; skip its MongoDB binary download
+ENV MONGOMS_DISABLE_POSTINSTALL=1
+
+COPY ./backend/package*.json ./
+
+RUN npm install
+
+COPY ./backend/ .
+
+EXPOSE 8080
+
+CMD ["npm", "run", "dev"]
