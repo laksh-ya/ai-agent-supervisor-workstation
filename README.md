@@ -6,7 +6,12 @@ A real-time console for supervising AI customer-service agents: monitor live con
 
 ![Screens of the workstation](docs/screenshots/carousel.gif)
 
-Built as a full-stack engineering assessment from a Figma design and an API contract. Full technical write-up: [docs/DOCUMENTATION.md](docs/DOCUMENTATION.md).
+Built as a full-stack engineering assessment from a Figma design and an API contract.
+
+| Document | Contents |
+| --- | --- |
+| [Architecture](docs/ARCHITECTURE.md) | Annotated screens, request sequences, route map, data model. A designed copy is in `docs/architecture.html` |
+| [Documentation](docs/DOCUMENTATION.md) | Requirement coverage, design decisions, verification, limitations |
 
 ## Contents
 
@@ -129,23 +134,50 @@ The design was read directly from Figma through the Figma MCP server instead of 
 
 ## Run locally
 
-Requires Node.js 18 or newer.
+Requires Node.js 18 or newer. No database install is needed: an embedded MongoDB starts by itself and loads sample data.
+
+**1. Go to the project folder**
+
+```bash
+cd ai-agent-supervisor-workstation
+```
+
+**2. Install dependencies** (first time only)
 
 ```bash
 npm run setup
 ```
 
+**3. Start the API and the app**
+
 ```bash
 npm run dev
 ```
 
-The app opens on http://localhost:3000 and the API on http://localhost:8080. An embedded MongoDB starts automatically and loads sample data. Docker is optional: `docker compose up -d` starts the same stack.
+**4. Open the app**
+
+| Address | What it is |
+| --- | --- |
+| http://localhost:3000 | The workstation |
+| http://localhost:8080/api-docs | Interactive API reference |
+| http://localhost:8080/health | API health check |
+
+**5. Run the automated checks** (second terminal, while step 3 is running)
 
 ```bash
 npm test
 ```
 
-Run the tests from a second terminal while the app is running.
+**6. Stop**
+
+Press `Ctrl + C` in the terminal running step 3.
+
+Other commands:
+
+| Command | Action |
+| --- | --- |
+| `npm run seed` | Reload the sample data |
+| `docker compose up -d` | Run the same stack in Docker instead |
 
 ## Other notes
 

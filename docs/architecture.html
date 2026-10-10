@@ -1,0 +1,838 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<!--ARTIFACT-START-->
+<title>Supervisor Workstation Architecture</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap">
+<style>
+/* Layout: one reading column, numbered sections, figures at full column width. Type and colour come from the product itself. */
+:root {
+  --bg: #fbfafd;
+  --surface: #ffffff;
+  --ink: #242033;
+  --muted: #6b6478;
+  --line: #e3dfea;
+  --accent: #514184;
+  --soft: #f1eef8;
+  --rest: #514184;
+  --ws: #2e7d50;
+  --sse: #a8690a;
+  --db: #6b6478;
+  --bad: #b24747;
+  --good: #2e7d50;
+  --sans: 'Inter', system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+  --mono: ui-monospace, 'SF Mono', SFMono-Regular, Menlo, Consolas, monospace;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #16141c; --surface: #1e1b27; --ink: #ece9f3; --muted: #a59fb3; --line: #353043;
+    --accent: #a99be0; --soft: #272239; --rest: #a99be0; --ws: #6cc391; --sse: #e0aa4e;
+    --db: #a59fb3; --bad: #e58a8a; --good: #6cc391; color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #16141c; --surface: #1e1b27; --ink: #ece9f3; --muted: #a59fb3; --line: #353043;
+  --accent: #a99be0; --soft: #272239; --rest: #a99be0; --ws: #6cc391; --sse: #e0aa4e;
+  --db: #a59fb3; --bad: #e58a8a; --good: #6cc391; color-scheme: dark;
+}
+* { box-sizing: border-box; }
+body { margin: 0; background: var(--bg); color: var(--ink); font-family: var(--sans); font-size: 15px; line-height: 1.6; -webkit-font-smoothing: antialiased; }
+.page { max-width: 1000px; margin: 0 auto; padding-inline: 20px; padding-block: 48px 80px; }
+h1 { font-size: 30px; line-height: 1.2; letter-spacing: -0.02em; margin: 0 0 10px; text-wrap: balance; }
+h2 { font-size: 21px; line-height: 1.3; letter-spacing: -0.01em; margin: 0 0 6px; text-wrap: balance; }
+h3 { font-size: 16px; line-height: 1.35; margin: 34px 0 6px; }
+p { margin: 0 0 12px; max-width: 68ch; }
+a { color: var(--accent); }
+code, .route { font-family: var(--mono); font-size: 12.5px; }
+section { border-top: 1px solid var(--line); padding-top: 34px; margin-top: 46px; }
+.lede { color: var(--muted); font-size: 16px; max-width: 64ch; }
+.meta { display: flex; flex-wrap: wrap; gap: 6px 28px; margin-top: 18px; font-size: 13px; color: var(--muted); }
+.meta b { color: var(--ink); font-weight: 600; }
+.num { color: var(--accent); font-weight: 700; margin-right: 8px; font-variant-numeric: tabular-nums; }
+.sub { color: var(--muted); margin-bottom: 18px; }
+
+nav.toc { margin-top: 30px; display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 4px 28px; font-size: 14px; }
+nav.toc a { text-decoration: none; color: var(--ink); padding: 3px 0; }
+nav.toc a:hover { color: var(--accent); text-decoration: underline; }
+
+figure { margin: 18px 0 0; }
+figcaption { font-size: 13px; color: var(--muted); margin-top: 10px; max-width: 72ch; }
+.scroll { overflow-x: auto; border: 1px solid var(--line); border-radius: 6px; background: var(--surface); }
+.scroll svg { display: block; width: 100%; min-width: 720px; height: auto; }
+svg text { font-family: var(--sans); fill: var(--ink); }
+svg .m { font-family: var(--mono); }
+svg .mu { fill: var(--muted); }
+
+table { width: 100%; border-collapse: collapse; font-size: 13.5px; }
+.tablewrap { overflow-x: auto; margin-top: 16px; }
+th { text-align: left; font-size: 11px; letter-spacing: 0.06em; text-transform: uppercase; color: var(--muted); font-weight: 600; padding: 8px 14px 8px 0; border-bottom: 1px solid var(--line); white-space: nowrap; }
+td { padding: 10px 14px 10px 0; border-bottom: 1px solid var(--line); vertical-align: top; }
+td:last-child, th:last-child { padding-right: 0; }
+td .route { white-space: nowrap; }
+td.n { width: 34px; font-weight: 700; color: var(--accent); font-variant-numeric: tabular-nums; }
+.kind { font-weight: 600; white-space: nowrap; }
+.kind.rest { color: var(--rest); } .kind.ws { color: var(--ws); } .kind.sse { color: var(--sse); } .kind.local { color: var(--muted); }
+
+.legend { display: flex; flex-wrap: wrap; gap: 10px 30px; margin-top: 16px; font-size: 13px; }
+.legend span { display: inline-flex; align-items: center; gap: 10px; }
+.legend svg { width: 44px; height: 10px; flex-shrink: 0; }
+
+/* Annotated screenshots: numbered markers sit on the control they describe */
+.shot { position: relative; border: 1px solid var(--line); border-radius: 6px; overflow: hidden; background: var(--surface); }
+.shot img { display: block; width: 100%; height: auto; }
+.shot i { position: absolute; transform: translate(-50%, -50%); width: clamp(15px, 2.3vw, 23px); height: clamp(15px, 2.3vw, 23px); border-radius: 50%;
+  background: #2a2245; color: #ffffff; box-shadow: 0 0 0 2px #ffffff; font-style: normal; font-weight: 700; font-size: clamp(8px, 1.15vw, 11.5px);
+  display: flex; align-items: center; justify-content: center; font-variant-numeric: tabular-nums; }
+.plain { border: 1px solid var(--line); border-radius: 6px; overflow: hidden; }
+.plain img { display: block; width: 100%; height: auto; }
+
+.note { border-left: 3px solid var(--accent); background: var(--soft); padding: 14px 18px; margin-top: 18px; font-size: 14px; }
+.note p { margin: 0; max-width: 72ch; }
+.note p + p { margin-top: 8px; }
+.note b { font-weight: 600; }
+
+.pair { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 22px; }
+.pair > * { min-width: 0; }
+
+.weights { margin-top: 16px; display: grid; gap: 9px; max-width: 640px; }
+.weights div { display: grid; grid-template-columns: 190px 1fr 30px; gap: 12px; align-items: center; font-size: 13.5px; }
+.weights span.bar { height: 10px; background: var(--accent); border-radius: 2px; display: block; }
+.weights span.v { text-align: right; font-variant-numeric: tabular-nums; font-weight: 600; }
+@media (max-width: 520px) { .weights div { grid-template-columns: 130px 1fr 26px; } }
+
+.stack { margin-top: 16px; border: 1px solid var(--line); border-radius: 6px; background: var(--surface); }
+.stack > div { padding: 11px 16px; border-bottom: 1px solid var(--line); display: grid; grid-template-columns: minmax(150px, 220px) 1fr; gap: 6px 18px; font-size: 13.5px; }
+.stack > div:last-child { border-bottom: 0; }
+.stack b { font-weight: 600; }
+@media (max-width: 520px) { .stack > div { grid-template-columns: 1fr; } }
+
+pre.tree { font-family: var(--mono); font-size: 12.5px; line-height: 1.7; background: var(--surface); border: 1px solid var(--line); border-radius: 6px; padding: 16px 18px; overflow-x: auto; margin: 16px 0 0; }
+pre.tree span { color: var(--muted); }
+</style>
+<div class="page">
+
+<header>
+  <h1>Supervisor Workstation Architecture</h1>
+  <p class="lede">How the supervisor console is built: what each screen shows, what runs behind every control, which addresses the browser calls, and where the data lives.</p>
+  <div class="meta">
+    <span><b>Live site</b> ai-agent-supervisor-workstation.vercel.app</span>
+    <span><b>Frontend</b> React 18, Chakra UI</span>
+    <span><b>Backend</b> Node.js, Express</span>
+    <span><b>Database</b> MongoDB</span>
+  </div>
+  <nav class="toc" aria-label="Contents">
+    <a href="#system"><span class="num">1</span>The system in one picture</a>
+    <a href="#connections"><span class="num">2</span>Three kinds of connection</a>
+    <a href="#screens"><span class="num">3</span>Screen by screen</a>
+    <a href="#flows"><span class="num">4</span>What happens when</a>
+    <a href="#routes"><span class="num">5</span>Route map</a>
+    <a href="#data"><span class="num">6</span>What is stored</a>
+    <a href="#background"><span class="num">7</span>Always running in the background</a>
+    <a href="#risk"><span class="num">8</span>How risk is scored</a>
+    <a href="#frontend"><span class="num">9</span>How the frontend is put together</a>
+    <a href="#hosted"><span class="num">10</span>The hosted version</a>
+    <a href="#folders"><span class="num">11</span>Folder map</a>
+  </nav>
+</header>
+
+<section id="system">
+  <h2><span class="num">1</span>The system in one picture</h2>
+  <p class="sub">Three parts: the supervisor's browser, one server, one database. The browser never touches the database. Everything goes through the server.</p>
+  <figure>
+    <div class="scroll">
+      <svg viewBox="0 0 960 540" role="img" aria-label="The browser holds the screens, a metrics stream reader and a live event bus. The server holds REST routes, a metrics stream route, a WebSocket hub, services and a traffic simulator. Services read and write MongoDB.">
+        <defs>
+          <marker id="s-rest" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0 L10 5 L0 10 z" fill="var(--rest)"/></marker>
+          <marker id="s-ws" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0 L10 5 L0 10 z" fill="var(--ws)"/></marker>
+          <marker id="s-sse" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0 L10 5 L0 10 z" fill="var(--sse)"/></marker>
+          <marker id="s-db" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0 L10 5 L0 10 z" fill="var(--db)"/></marker>
+        </defs>
+        <!-- groups -->
+        <rect x="20" y="30" width="300" height="320" rx="6" fill="none" stroke="var(--line)" stroke-width="1.5"/>
+        <text x="36" y="58" font-size="13" font-weight="700">Supervisor's browser</text>
+        <rect x="480" y="30" width="300" height="490" rx="6" fill="none" stroke="var(--line)" stroke-width="1.5"/>
+        <text x="496" y="58" font-size="13" font-weight="700">Server</text>
+        <!-- browser parts -->
+        <g font-size="13">
+          <rect x="40" y="76" width="260" height="64" rx="4" fill="var(--soft)" stroke="var(--line)"/>
+          <text x="56" y="103" font-weight="600">Screens</text>
+          <text x="56" y="123" font-size="11.5" class="mu">the five pages a supervisor uses</text>
+          <rect x="40" y="166" width="260" height="64" rx="4" fill="var(--soft)" stroke="var(--line)"/>
+          <text x="56" y="193" font-weight="600">Metrics stream reader</text>
+          <text x="56" y="213" font-size="11.5" class="mu">swaps in fresh dashboard numbers</text>
+          <rect x="40" y="256" width="260" height="64" rx="4" fill="var(--soft)" stroke="var(--line)"/>
+          <text x="56" y="283" font-weight="600">Live event bus</text>
+          <text x="56" y="303" font-size="11.5" class="mu">hands each server event to the screens</text>
+        </g>
+        <!-- server parts -->
+        <g font-size="13">
+          <rect x="500" y="76" width="260" height="64" rx="4" fill="var(--soft)" stroke="var(--line)"/>
+          <text x="516" y="103" font-weight="600">REST routes</text>
+          <text x="516" y="123" font-size="11.5" class="mu">one address per read or action</text>
+          <rect x="500" y="166" width="260" height="64" rx="4" fill="var(--soft)" stroke="var(--line)"/>
+          <text x="516" y="193" font-weight="600">Metrics stream route</text>
+          <text x="516" y="213" font-size="11.5" class="mu">recomputes the dashboard every 2 s</text>
+          <rect x="500" y="256" width="260" height="64" rx="4" fill="var(--soft)" stroke="var(--line)"/>
+          <text x="516" y="283" font-weight="600">WebSocket hub</text>
+          <text x="516" y="303" font-size="11.5" class="mu">sends events to every open browser</text>
+          <rect x="500" y="346" width="260" height="64" rx="4" fill="var(--soft)" stroke="var(--line)"/>
+          <text x="516" y="373" font-weight="600">Services</text>
+          <text x="516" y="393" font-size="11.5" class="mu">risk score, analytics, co-pilot, evaluation</text>
+          <rect x="500" y="436" width="260" height="64" rx="4" fill="var(--soft)" stroke="var(--line)"/>
+          <text x="516" y="463" font-weight="600">Traffic simulator</text>
+          <text x="516" y="483" font-size="11.5" class="mu">plays customers and AI agents, every 6 s</text>
+        </g>
+        <!-- database -->
+        <rect x="840" y="336" width="104" height="84" rx="4" fill="var(--surface)" stroke="var(--db)" stroke-width="1.5"/>
+        <text x="892" y="372" font-size="13" font-weight="600" text-anchor="middle">MongoDB</text>
+        <text x="892" y="392" font-size="11.5" class="mu" text-anchor="middle">7 collections</text>
+        <!-- connections -->
+        <line x1="304" y1="108" x2="496" y2="108" stroke="var(--rest)" stroke-width="2" marker-start="url(#s-rest)" marker-end="url(#s-rest)"/>
+        <text x="400" y="98" font-size="12" font-weight="600" text-anchor="middle" fill="var(--rest)">REST</text>
+        <text x="400" y="126" font-size="11.5" class="mu" text-anchor="middle">ask, get an answer</text>
+        <line x1="496" y1="198" x2="304" y2="198" stroke="var(--sse)" stroke-width="2" stroke-dasharray="2 5" stroke-linecap="round" marker-end="url(#s-sse)"/>
+        <text x="400" y="188" font-size="12" font-weight="600" text-anchor="middle" fill="var(--sse)">SSE</text>
+        <text x="400" y="216" font-size="11.5" class="mu" text-anchor="middle">metrics every 2 s</text>
+        <line x1="496" y1="288" x2="304" y2="288" stroke="var(--ws)" stroke-width="2" stroke-dasharray="8 5" marker-end="url(#s-ws)"/>
+        <text x="400" y="278" font-size="12" font-weight="600" text-anchor="middle" fill="var(--ws)">WebSocket</text>
+        <text x="400" y="306" font-size="11.5" class="mu" text-anchor="middle">events as they happen</text>
+        <!-- internal -->
+        <line x1="764" y1="378" x2="836" y2="378" stroke="var(--db)" stroke-width="1.5" marker-start="url(#s-db)" marker-end="url(#s-db)"/>
+        <text x="800" y="368" font-size="11.5" class="mu" text-anchor="middle">read, write</text>
+        <line x1="630" y1="436" x2="630" y2="414" stroke="var(--db)" stroke-width="1.5" marker-end="url(#s-db)"/>
+        <text x="642" y="429" font-size="11.5" class="mu">new messages</text>
+        <line x1="630" y1="346" x2="630" y2="324" stroke="var(--db)" stroke-width="1.5" marker-end="url(#s-db)"/>
+        <text x="642" y="339" font-size="11.5" class="mu">what changed</text>
+      </svg>
+    </div>
+    <figcaption>REST routes and the metrics stream route both call the services. The services are the only part that reads or writes the database, and they tell the hub about every change.</figcaption>
+  </figure>
+</section>
+
+<section id="connections">
+  <h2><span class="num">2</span>Three kinds of connection</h2>
+  <p class="sub">The browser talks to the server in three ways. Each one is used for the job it suits. The same line styles are used in every diagram below.</p>
+  <div class="legend" aria-hidden="true">
+    <span><svg viewBox="0 0 44 10"><line x1="0" y1="5" x2="44" y2="5" stroke="var(--rest)" stroke-width="2"/></svg>REST</span>
+    <span><svg viewBox="0 0 44 10"><line x1="0" y1="5" x2="44" y2="5" stroke="var(--ws)" stroke-width="2" stroke-dasharray="8 5"/></svg>WebSocket</span>
+    <span><svg viewBox="0 0 44 10"><line x1="1" y1="5" x2="44" y2="5" stroke="var(--sse)" stroke-width="2" stroke-dasharray="2 5" stroke-linecap="round"/></svg>SSE</span>
+    <span><svg viewBox="0 0 44 10"><line x1="0" y1="5" x2="44" y2="5" stroke="var(--db)" stroke-width="1.5"/></svg>Database read or write</span>
+  </div>
+  <div class="tablewrap">
+    <table>
+      <thead><tr><th>Connection</th><th>In plain terms</th><th>Direction</th><th>Used for</th></tr></thead>
+      <tbody>
+        <tr><td class="kind rest">REST</td><td>The browser asks a question or sends an action. The server answers once and the exchange ends.</td><td>Browser asks, server answers</td><td>Loading screens, take over, send a reply, save a template, deploy a change</td></tr>
+        <tr><td class="kind ws">WebSocket</td><td>One connection stays open. The server can speak at any moment without being asked.</td><td>Server to browser, at any time</td><td>New messages, risk changes, alerts, the activity feed</td></tr>
+        <tr><td class="kind sse">SSE</td><td>One connection stays open and the server sends on a fixed beat. The browser reconnects by itself if it drops.</td><td>Server to browser, every 2 seconds</td><td>The dashboard's numbers, chart, queue health and signals</td></tr>
+      </tbody>
+    </table>
+  </div>
+</section>
+
+<section id="screens">
+  <h2><span class="num">3</span>Screen by screen</h2>
+  <p class="sub">Each number on a screenshot matches a row in the table under it. The table says what the supervisor sees and what runs behind it.</p>
+
+  <h3>Dashboard <span class="route" style="color:var(--muted);font-weight:400">/</span></h3>
+  <div class="shot">
+    <img src="screenshots/dashboard.png" alt="Dashboard screen with five metric cards, a trend chart, queue health, critical signals, the priority queue and the supervisor feed" width="2160" height="1536">
+    <i style="left:72.7%;top:2.4%">1</i>
+    <i style="left:66.5%;top:10.5%">2</i>
+    <i style="left:74.4%;top:10.5%">3</i>
+    <i style="left:88%;top:10.3%">4</i>
+    <i style="left:17.9%;top:17.9%">5</i>
+    <i style="left:17.9%;top:29.4%">6</i>
+    <i style="left:58.4%;top:29.4%">7</i>
+    <i style="left:80.9%;top:29.4%">8</i>
+    <i style="left:17.9%;top:60.1%">9</i>
+    <i style="left:53.9%;top:60.8%">10</i>
+    <i style="left:64%;top:72.1%">11</i>
+    <i style="left:71.6%;top:60.1%">12</i>
+  </div>
+  <div class="tablewrap">
+    <table>
+      <thead><tr><th></th><th>On screen</th><th>Behind the scenes</th><th>Route or event</th><th>Type</th></tr></thead>
+      <tbody>
+        <tr><td class="n">1</td><td>Search box</td><td>Waits for a pause in typing, then looks across conversations, agents and templates.</td><td><span class="route">GET /api/search</span></td><td class="kind rest">REST</td></tr>
+        <tr><td class="n">2</td><td>Live status</td><td>Shows the age of the last metrics update. Changes to Reconnecting or Paused when the stream is not flowing.</td><td><span class="route">GET /api/analytics/stream</span></td><td class="kind sse">SSE</td></tr>
+        <tr><td class="n">3</td><td>Time range and region</td><td>Changing either one reloads the dashboard and restarts the stream for the new selection.</td><td><span class="route">GET /api/analytics/dashboard</span></td><td class="kind rest">REST</td></tr>
+        <tr><td class="n">4</td><td>Export report</td><td>Builds a CSV file in the browser from the numbers already on screen. No server call.</td><td>None</td><td class="kind local">Browser</td></tr>
+        <tr><td class="n">5</td><td>Metric cards</td><td>The server counts open conversations, scores each one and totals the results. New values arrive every 2 seconds.</td><td><span class="route">metrics</span> event</td><td class="kind sse">SSE</td></tr>
+        <tr><td class="n">6</td><td>Volume and SLA chart</td><td>Drawn from metric snapshots the server saves about once a minute.</td><td><span class="route">metrics</span> event</td><td class="kind sse">SSE</td></tr>
+        <tr><td class="n">7</td><td>Queue health</td><td>Risk scores grouped by queue. Clicking a row filters the priority queue.</td><td><span class="route">metrics</span> event</td><td class="kind sse">SSE</td></tr>
+        <tr><td class="n">8</td><td>Critical signals</td><td>Three checks: several risky chats in one queue, one region's mood dropping, an agent falling back too often.</td><td><span class="route">metrics</span> event</td><td class="kind sse">SSE</td></tr>
+        <tr><td class="n">9</td><td>Priority queue</td><td>Every open conversation, highest risk first. Rows update the moment a message arrives. Wait clocks tick in the browser.</td><td><span class="route">conversation_updated</span>, <span class="route">new_conversation</span></td><td class="kind ws">WebSocket</td></tr>
+        <tr><td class="n">10</td><td>Filters and sort</td><td>Applied in the browser to the list it already holds, so they respond instantly.</td><td>None</td><td class="kind local">Browser</td></tr>
+        <tr><td class="n">11</td><td>Take over</td><td>Pauses the AI on that conversation, then opens it.</td><td><span class="route">POST /api/intervene</span></td><td class="kind rest">REST</td></tr>
+        <tr><td class="n">12</td><td>Supervisor feed</td><td>A running log of takeovers, handoffs, alerts and deployments.</td><td><span class="route">GET /api/activity</span>, then <span class="route">activity</span> events</td><td class="kind ws">WebSocket</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <h3>Conversation <span class="route" style="color:var(--muted);font-weight:400">/conversation/:id</span></h3>
+  <div class="shot">
+    <img src="screenshots/conversation.png" alt="Conversation screen with the conversation list, transcript, co-pilot recommendation, reply box and customer details" width="2160" height="1536">
+    <i style="left:9%;top:18.4%">1</i>
+    <i style="left:66.1%;top:10.6%">2</i>
+    <i style="left:29.2%;top:18.1%">3</i>
+    <i style="left:29.5%;top:27.5%">4</i>
+    <i style="left:29.2%;top:64.5%">5</i>
+    <i style="left:62.5%;top:84.8%">6</i>
+    <i style="left:29.2%;top:90.3%">7</i>
+    <i style="left:59.8%;top:90.4%">8</i>
+    <i style="left:75.6%;top:8.4%">9</i>
+    <i style="left:75.5%;top:58.6%">10</i>
+    <i style="left:77%;top:92.4%">11</i>
+  </div>
+  <div class="tablewrap">
+    <table>
+      <thead><tr><th></th><th>On screen</th><th>Behind the scenes</th><th>Route or event</th><th>Type</th></tr></thead>
+      <tbody>
+        <tr><td class="n">1</td><td>Conversation list</td><td>The same live list the dashboard uses, kept current by events.</td><td><span class="route">conversation_updated</span></td><td class="kind ws">WebSocket</td></tr>
+        <tr><td class="n">2</td><td>Take over</td><td>Marks the conversation as owned by a human. The simulator stops writing AI replies for it. After takeover this button becomes Return to AI.</td><td><span class="route">POST /api/intervene</span></td><td class="kind rest">REST</td></tr>
+        <tr><td class="n">3</td><td>SLA banner</td><td>The countdown to the 15 minute target and the main reason for the risk, both from the risk model.</td><td><span class="route">GET /api/conversations/:id</span></td><td class="kind rest">REST</td></tr>
+        <tr><td class="n">4</td><td>Transcript</td><td>Loaded once, then each new message is appended as it arrives.</td><td><span class="route">message_update</span></td><td class="kind ws">WebSocket</td></tr>
+        <tr><td class="n">5</td><td>Co-pilot recommendation</td><td>The server picks a playbook for the queue, looks up the policy and writes a ready reply with a confidence figure. Approve sends it.</td><td><span class="route">GET /api/conversations/:id/copilot</span></td><td class="kind rest">REST</td></tr>
+        <tr><td class="n">6</td><td>Template</td><td>Opens the template library over the conversation, with the blanks filled from this case.</td><td><span class="route">GET /api/templates</span></td><td class="kind rest">REST</td></tr>
+        <tr><td class="n">7</td><td>Reply box</td><td>Sends the supervisor's message. Send stays off while any template blank is empty.</td><td><span class="route">POST /api/conversations/:id/messages</span></td><td class="kind rest">REST</td></tr>
+        <tr><td class="n">8</td><td>Microphone</td><td>Speech is turned into text by the browser. Finished phrases are added to the draft.</td><td>None</td><td class="kind local">Browser</td></tr>
+        <tr><td class="n">9</td><td>Customer details and diagnostics</td><td>Profile fields and four percentages produced by the risk model.</td><td><span class="route">GET /api/conversations/:id</span></td><td class="kind rest">REST</td></tr>
+        <tr><td class="n">10</td><td>Feedback notes</td><td>Saved automatically a moment after typing stops.</td><td><span class="route">PUT /api/conversations/:id/feedback</span></td><td class="kind rest">REST</td></tr>
+        <tr><td class="n">11</td><td>Mark as Resolved</td><td>Closes the case and ends any takeover.</td><td><span class="route">PATCH /api/conversations/:id/status</span></td><td class="kind rest">REST</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <h3>Agent configuration <span class="route" style="color:var(--muted);font-weight:400">/agent-config</span></h3>
+  <div class="shot">
+    <img src="screenshots/agent-config.png" alt="Agent configuration screen with behaviour sliders, escalation policy, performance figures, evaluation suite, routing matrix and simulation console" width="2160" height="1536">
+    <i style="left:9%;top:28.6%">1</i>
+    <i style="left:23.7%;top:20.8%">2</i>
+    <i style="left:9%;top:61.8%">3</i>
+    <i style="left:9%;top:67.8%">4</i>
+    <i style="left:37.8%;top:20.7%">5</i>
+    <i style="left:79.1%;top:11.2%">6</i>
+    <i style="left:37.8%;top:44%">7</i>
+    <i style="left:87.3%;top:93%">8</i>
+    <i style="left:87.6%;top:11.2%">9</i>
+    <i style="left:37.8%;top:75.5%">10</i>
+  </div>
+  <div class="tablewrap">
+    <table>
+      <thead><tr><th></th><th>On screen</th><th>Behind the scenes</th><th>Route or event</th><th>Type</th></tr></thead>
+      <tbody>
+        <tr><td class="n">1</td><td>Behaviour sliders</td><td>Changes are held as a draft in the browser. The live agent is untouched until deploy.</td><td>None</td><td class="kind local">Browser</td></tr>
+        <tr><td class="n">2</td><td>Presets</td><td>Loads a saved configuration into the draft, or saves the draft under a name.</td><td><span class="route">GET</span> and <span class="route">POST /api/presets</span></td><td class="kind rest">REST</td></tr>
+        <tr><td class="n">3</td><td>Exact values</td><td>The real settings behind the sliders: temperature, max tokens, top-p.</td><td>None</td><td class="kind local">Browser</td></tr>
+        <tr><td class="n">4</td><td>Escalation policy</td><td>The limits that force a handover to a human. The risk model and the simulator both read them.</td><td>Saved on deploy</td><td class="kind local">Browser</td></tr>
+        <tr><td class="n">5</td><td>Performance</td><td>Worked out from resolved conversations for this agent over the chosen period.</td><td><span class="route">GET /api/agents/:id/performance</span></td><td class="kind rest">REST</td></tr>
+        <tr><td class="n">6</td><td>Run evals</td><td>Sends the draft to be scored on five checks before anything goes live.</td><td><span class="route">POST /api/agents/:id/evaluate</span></td><td class="kind rest">REST</td></tr>
+        <tr><td class="n">7</td><td>Evaluation suite</td><td>The five scores, each marked Pass, Review or Risk.</td><td><span class="route">GET /api/agents/:id/evaluation</span></td><td class="kind rest">REST</td></tr>
+        <tr><td class="n">8</td><td>Simulation console</td><td>Replays a sample customer message against the draft and shows how the agent would answer.</td><td><span class="route">POST /api/agents/:id/simulate</span></td><td class="kind rest">REST</td></tr>
+        <tr><td class="n">9</td><td>Review and deploy</td><td>Shows a field-by-field comparison, then saves. The version goes up by one and the old settings are kept.</td><td><span class="route">PATCH /api/agents/:id/config</span></td><td class="kind rest">REST</td></tr>
+        <tr><td class="n">10</td><td>Routing matrix</td><td>Updates to the new version after a deploy, on every open screen.</td><td><span class="route">agent_update</span></td><td class="kind ws">WebSocket</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <h3>Templates <span class="route" style="color:var(--muted);font-weight:400">/templates</span></h3>
+  <div class="shot">
+    <img src="screenshots/templates.png" alt="Templates screen with the library navigation, template cards and a preview panel" width="2160" height="1536">
+    <i style="left:8.7%;top:18.1%">1</i>
+    <i style="left:24.1%;top:25.7%">2</i>
+    <i style="left:24.1%;top:30.3%">3</i>
+    <i style="left:49.4%;top:35.4%">4</i>
+    <i style="left:30.4%;top:53.5%">5</i>
+    <i style="left:87.4%;top:9.1%">6</i>
+    <i style="left:77%;top:27.4%">7</i>
+    <i style="left:77.3%;top:80.5%">8</i>
+    <i style="left:90.2%;top:92.7%">9</i>
+  </div>
+  <div class="tablewrap">
+    <table>
+      <thead><tr><th></th><th>On screen</th><th>Behind the scenes</th><th>Route or event</th><th>Type</th></tr></thead>
+      <tbody>
+        <tr><td class="n">1</td><td>Library navigation</td><td>Groups by journey and channel. Filtering happens in the browser on the loaded list.</td><td><span class="route">GET /api/templates</span></td><td class="kind rest">REST</td></tr>
+        <tr><td class="n">2</td><td>Search, channel, sort</td><td>Applied in the browser.</td><td>None</td><td class="kind local">Browser</td></tr>
+        <tr><td class="n">3</td><td>All, My team, Recently used</td><td>My team shows templates marked as shared.</td><td>None</td><td class="kind local">Browser</td></tr>
+        <tr><td class="n">4</td><td>Favourite star</td><td>Changes at once on screen, then saves. If the save fails it switches back.</td><td><span class="route">PATCH /api/templates/:id</span></td><td class="kind rest">REST</td></tr>
+        <tr><td class="n">5</td><td>Delete, edit, use</td><td>Edit opens the editor. Use opens a conversation with this template ready.</td><td><span class="route">DELETE /api/templates/:id</span></td><td class="kind rest">REST</td></tr>
+        <tr><td class="n">6</td><td>Create template</td><td>The server removes unsafe HTML, finds every <code>{{blank}}</code> and stores the list.</td><td><span class="route">POST /api/templates</span></td><td class="kind rest">REST</td></tr>
+        <tr><td class="n">7</td><td>Preview</td><td>Fills the blanks for a chosen customer and shows the result. Empty blanks are marked.</td><td>None</td><td class="kind local">Browser</td></tr>
+        <tr><td class="n">8</td><td>Resolved count</td><td>How many blanks have a value and which still need one.</td><td>None</td><td class="kind local">Browser</td></tr>
+        <tr><td class="n">9</td><td>Insert</td><td>Places the filled text in the reply box of a conversation.</td><td>None</td><td class="kind local">Browser</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <h3>On a phone</h3>
+  <div class="plain"><img src="screenshots/mobile.png" alt="Dashboard on a phone: stacked metric cards, the queue inside its own scrolling card, and a navigation drawer" width="1880" height="1322"></div>
+  <p style="margin-top:12px">The same dashboard code, with layout values that change by screen width. Cards go from five columns to three to two, the sidebar becomes a drawer, and the queue scrolls inside its own card so the page never scrolls sideways.</p>
+</section>
+
+<section id="flows">
+  <h2><span class="num">4</span>What happens when</h2>
+  <p class="sub">Five sequences, read top to bottom. Each row is one step.</p>
+
+  <h3>The dashboard opens and stays live</h3>
+  <figure><div class="scroll" id="seq-dashboard"></div>
+    <figcaption>The page is drawn from one ordinary request. The stream starts afterwards and repeats step 7 for as long as the page is open.</figcaption></figure>
+  <div class="note">
+    <p><b>Why the stream waits 2 seconds (step 5).</b> The automated test for this screen waits until the browser has no requests in progress. A stream is a request that never finishes, so opening it straight away meant the page never looked finished and the test failed.</p>
+    <p>The page now loads with a normal request first and opens the stream at the first 2 second beat. The supervisor sees no difference, and the test passes.</p>
+  </div>
+
+  <h3>A customer message arrives</h3>
+  <figure><div class="scroll" id="seq-message"></div>
+    <figcaption>Nothing is requested by the browser here. The server pushes every change, so two supervisors with the same screen open see the same thing at the same moment.</figcaption></figure>
+
+  <h3>Take over, reply, return to AI</h3>
+  <figure><div class="scroll" id="seq-takeover"></div>
+    <figcaption>One flag on the conversation decides who is replying. The simulator checks that flag before it writes an AI reply.</figcaption></figure>
+
+  <h3>The duplicate handoff note, before and after</h3>
+  <p>If Return to AI was triggered twice at nearly the same moment, two handoff notes were written. Both requests checked the flag before either had changed it.</p>
+  <figure><div class="scroll" id="seq-race-before"></div><figcaption>Before: check, then write, as two separate steps. Both requests pass the check.</figcaption></figure>
+  <figure style="margin-top:26px"><div class="scroll" id="seq-race-after"></div><figcaption>After: check and switch off in one database step. Only the first request can succeed.</figcaption></figure>
+
+  <h3>A template is used in a reply</h3>
+  <figure><div class="scroll" id="seq-template"></div>
+    <figcaption>Filling and previewing happen in the browser, so the preview keeps up with typing. The server is involved only when the message is sent.</figcaption></figure>
+
+  <h3>A configuration change is deployed</h3>
+  <figure><div class="scroll" id="seq-deploy"></div>
+    <figcaption>Nothing reaches the live agent until step 5. Steps 2 and 3 test the draft without saving it.</figcaption></figure>
+</section>
+
+<section id="routes">
+  <h2><span class="num">5</span>Route map</h2>
+  <p class="sub">Every address the server answers. Screen routes are what appears in the browser's address bar. API routes are what the screens call.</p>
+
+  <h3>Screen routes</h3>
+  <div class="tablewrap"><table>
+    <thead><tr><th>Address</th><th>Screen</th><th>Loaded</th></tr></thead>
+    <tbody>
+      <tr><td><span class="route">/</span></td><td>Dashboard</td><td>With the app</td></tr>
+      <tr><td><span class="route">/conversations</span>, <span class="route">/conversation/:id</span></td><td>Conversation</td><td>On first visit</td></tr>
+      <tr><td><span class="route">/agent-config</span></td><td>Agent configuration</td><td>On first visit</td></tr>
+      <tr><td><span class="route">/templates</span></td><td>Templates</td><td>On first visit</td></tr>
+      <tr><td><span class="route">/settings</span></td><td>Settings</td><td>On first visit</td></tr>
+    </tbody>
+  </table></div>
+
+  <h3>Conversations and intervention</h3>
+  <div class="tablewrap"><table>
+    <thead><tr><th>Route</th><th>What it does</th></tr></thead>
+    <tbody>
+      <tr><td><span class="route">GET /api/conversations</span></td><td>Lists conversations. Accepts filters, a search term and sort by risk.</td></tr>
+      <tr><td><span class="route">GET /api/conversations/:id</span></td><td>One conversation with its transcript and current risk.</td></tr>
+      <tr><td><span class="route">POST /api/conversations/:id/messages</span></td><td>Adds a message. Used for supervisor replies.</td></tr>
+      <tr><td><span class="route">PATCH /api/conversations/:id/status</span></td><td>Resolves, reopens or escalates.</td></tr>
+      <tr><td><span class="route">POST /api/conversations/:id/tags</span></td><td>Adds tags.</td></tr>
+      <tr><td><span class="route">PUT /api/conversations/:id/feedback</span></td><td>Saves feedback notes and the rating.</td></tr>
+      <tr><td><span class="route">GET /api/conversations/:id/copilot</span></td><td>Returns the recommended action and a ready reply.</td></tr>
+      <tr><td><span class="route">POST /api/conversations/:id/copilot/decision</span></td><td>Records that the supervisor approved or escalated.</td></tr>
+      <tr><td><span class="route">POST /api/intervene</span></td><td>Take over from the AI.</td></tr>
+      <tr><td><span class="route">POST /api/intervene/release</span></td><td>Return to the AI with notes. A second call is refused with 409.</td></tr>
+    </tbody>
+  </table></div>
+
+  <h3>Agents and presets</h3>
+  <div class="tablewrap"><table>
+    <thead><tr><th>Route</th><th>What it does</th></tr></thead>
+    <tbody>
+      <tr><td><span class="route">GET /api/agents</span>, <span class="route">GET /api/agents/:id</span></td><td>Agents with their settings, capabilities and thresholds.</td></tr>
+      <tr><td><span class="route">PATCH /api/agents/:id/config</span></td><td>Checks every value is in range, saves, and raises the version when deployed.</td></tr>
+      <tr><td><span class="route">GET /api/agents/:id/metrics</span></td><td>Stored performance figures.</td></tr>
+      <tr><td><span class="route">GET /api/agents/:id/performance</span></td><td>Containment, satisfaction, fallback and hallucination for a period.</td></tr>
+      <tr><td><span class="route">GET /api/agents/:id/evaluation</span></td><td>The latest evaluation result.</td></tr>
+      <tr><td><span class="route">POST /api/agents/:id/evaluate</span></td><td>Scores the live settings or a draft.</td></tr>
+      <tr><td><span class="route">POST /api/agents/:id/simulate</span></td><td>Replays a sample case, optionally against the previous version too.</td></tr>
+      <tr><td><span class="route">GET /api/presets</span>, <span class="route">POST /api/presets</span></td><td>Lists and saves named configurations.</td></tr>
+      <tr><td><span class="route">DELETE /api/presets/:id</span>, <span class="route">POST /api/presets/:id/apply</span></td><td>Removes a preset, or applies one straight to an agent.</td></tr>
+    </tbody>
+  </table></div>
+
+  <h3>Templates</h3>
+  <div class="tablewrap"><table>
+    <thead><tr><th>Route</th><th>What it does</th></tr></thead>
+    <tbody>
+      <tr><td><span class="route">GET /api/templates</span></td><td>Lists templates. Accepts search, category, channel and sort.</td></tr>
+      <tr><td><span class="route">POST /api/templates</span></td><td>Creates one. Cleans the HTML and records its blanks.</td></tr>
+      <tr><td><span class="route">GET</span>, <span class="route">PATCH</span>, <span class="route">DELETE /api/templates/:id</span></td><td>Reads, edits or removes one.</td></tr>
+      <tr><td><span class="route">POST /api/templates/:id/render</span></td><td>Fills the blanks on the server and returns the finished text.</td></tr>
+    </tbody>
+  </table></div>
+
+  <h3>Analytics and system</h3>
+  <div class="tablewrap"><table>
+    <thead><tr><th>Route</th><th>What it does</th></tr></thead>
+    <tbody>
+      <tr><td><span class="route">GET /api/analytics/dashboard</span></td><td>Everything the dashboard shows, in one answer.</td></tr>
+      <tr><td><span class="route">GET /api/analytics/stream</span></td><td>The same numbers as a stream, every 2 seconds.</td></tr>
+      <tr><td><span class="route">GET /api/analytics/overview</span>, <span class="route">/agents</span>, <span class="route">/issues</span></td><td>Totals and trends by day, by agent and by issue.</td></tr>
+      <tr><td><span class="route">GET /api/activity</span></td><td>Recent entries for the supervisor feed.</td></tr>
+      <tr><td><span class="route">GET /api/search</span></td><td>Search across conversations, agents and templates.</td></tr>
+      <tr><td><span class="route">GET /api/system/status</span>, <span class="route">POST /api/system/simulation</span></td><td>Reads and switches the traffic simulator.</td></tr>
+      <tr><td><span class="route">POST /api/system/reset</span></td><td>Reloads the sample data.</td></tr>
+      <tr><td><span class="route">GET /api/knowledge-base</span>, <span class="route">POST /api/vector/search</span></td><td>Knowledge sources and policy lookup.</td></tr>
+      <tr><td><span class="route">GET /health</span>, <span class="route">GET /api-docs</span></td><td>Health check and the interactive API reference.</td></tr>
+    </tbody>
+  </table></div>
+
+  <h3>Live events over WebSocket</h3>
+  <div class="tablewrap"><table>
+    <thead><tr><th>Event</th><th>Sent when</th><th>Effect on screen</th></tr></thead>
+    <tbody>
+      <tr><td><span class="route">conversations_update</span></td><td>A browser connects</td><td>Fills the live list</td></tr>
+      <tr><td><span class="route">new_conversation</span></td><td>A customer starts a chat</td><td>A new row appears in the queue</td></tr>
+      <tr><td><span class="route">message_update</span></td><td>Any message is added</td><td>The transcript grows</td></tr>
+      <tr><td><span class="route">conversation_updated</span></td><td>Status, risk or ownership changes</td><td>The row moves and its labels change</td></tr>
+      <tr><td><span class="route">metrics_update</span></td><td>Sentiment or confidence changes</td><td>Figures on the conversation screen update</td></tr>
+      <tr><td><span class="route">alert</span></td><td>A conversation crosses an escalation limit</td><td>A toast with a link to the conversation</td></tr>
+      <tr><td><span class="route">activity</span></td><td>A takeover, handoff, alert or deploy</td><td>A new line in the supervisor feed</td></tr>
+      <tr><td><span class="route">agent_update</span></td><td>An agent's settings are saved</td><td>Version and routing update</td></tr>
+      <tr><td><span class="route">template_created</span>, <span class="route">_updated</span>, <span class="route">_deleted</span></td><td>A template changes</td><td>The library updates on every open screen</td></tr>
+      <tr><td><span class="route">preset_created</span>, <span class="route">_deleted</span></td><td>A preset changes</td><td>The presets menu updates</td></tr>
+    </tbody>
+  </table></div>
+</section>
+
+<section id="data">
+  <h2><span class="num">6</span>What is stored</h2>
+  <p class="sub">Seven collections in MongoDB. A collection is a set of records of one kind. The risk score is not stored: it depends on how long the customer has waited, so it is worked out each time it is needed.</p>
+  <figure>
+    <div class="scroll">
+      <svg viewBox="0 0 960 430" role="img" aria-label="Conversations sit at the centre. Each is handled by an agent and its messages can cite a template. Agents use knowledge bases, presets are saved from agents, activity entries point to conversations, and metric snapshots are totals of conversations.">
+        <defs><marker id="d-a" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0 0 L10 5 L0 10 z" fill="var(--db)"/></marker></defs>
+        <g font-size="13">
+          <rect x="370" y="150" width="220" height="130" rx="4" fill="var(--soft)" stroke="var(--accent)" stroke-width="1.5"/>
+          <text x="386" y="176" font-weight="700">conversations</text>
+          <text x="386" y="198" font-size="11.5" class="mu">customer, queue, region, status</text>
+          <text x="386" y="216" font-size="11.5" class="mu">messages (the transcript)</text>
+          <text x="386" y="234" font-size="11.5" class="mu">sentiment, AI confidence</text>
+          <text x="386" y="252" font-size="11.5" class="mu">takeover flag, notes, feedback</text>
+          <text x="386" y="270" font-size="11.5" class="mu">alert level</text>
+
+          <rect x="710" y="150" width="230" height="130" rx="4" fill="var(--surface)" stroke="var(--line)" stroke-width="1.5"/>
+          <text x="726" y="176" font-weight="700">agents</text>
+          <text x="726" y="198" font-size="11.5" class="mu">temperature, max tokens, top-p</text>
+          <text x="726" y="216" font-size="11.5" class="mu">capabilities, knowledge switches</text>
+          <text x="726" y="234" font-size="11.5" class="mu">escalation thresholds</text>
+          <text x="726" y="252" font-size="11.5" class="mu">version, previous settings</text>
+          <text x="726" y="270" font-size="11.5" class="mu">routing, performance figures</text>
+
+          <rect x="710" y="20" width="230" height="78" rx="4" fill="var(--surface)" stroke="var(--line)" stroke-width="1.5"/>
+          <text x="726" y="46" font-weight="700">knowledge bases</text>
+          <text x="726" y="68" font-size="11.5" class="mu">name, document count</text>
+          <text x="726" y="86" font-size="11.5" class="mu">last updated</text>
+
+          <rect x="710" y="332" width="230" height="78" rx="4" fill="var(--surface)" stroke="var(--line)" stroke-width="1.5"/>
+          <text x="726" y="358" font-weight="700">presets</text>
+          <text x="726" y="380" font-size="11.5" class="mu">name, description</text>
+          <text x="726" y="398" font-size="11.5" class="mu">a full copy of agent settings</text>
+
+          <rect x="20" y="150" width="230" height="130" rx="4" fill="var(--surface)" stroke="var(--line)" stroke-width="1.5"/>
+          <text x="36" y="176" font-weight="700">templates</text>
+          <text x="36" y="198" font-size="11.5" class="mu">name, category, channels</text>
+          <text x="36" y="216" font-size="11.5" class="mu">content with {{blanks}}</text>
+          <text x="36" y="234" font-size="11.5" class="mu">list of variables</text>
+          <text x="36" y="252" font-size="11.5" class="mu">shared with team, favourite</text>
+          <text x="36" y="270" font-size="11.5" class="mu">use count, last used</text>
+
+          <rect x="20" y="332" width="230" height="78" rx="4" fill="var(--surface)" stroke="var(--line)" stroke-width="1.5"/>
+          <text x="36" y="358" font-weight="700">activity</text>
+          <text x="36" y="380" font-size="11.5" class="mu">type, title, detail, severity</text>
+          <text x="36" y="398" font-size="11.5" class="mu">time, who did it</text>
+
+          <rect x="370" y="20" width="220" height="78" rx="4" fill="var(--surface)" stroke="var(--line)" stroke-width="1.5"/>
+          <text x="386" y="46" font-weight="700">metric snapshots</text>
+          <text x="386" y="68" font-size="11.5" class="mu">open load, SLA at risk, containment</text>
+          <text x="386" y="86" font-size="11.5" class="mu">one record about every minute</text>
+        </g>
+        <g stroke="var(--db)" stroke-width="1.5" fill="none">
+          <line x1="590" y1="215" x2="706" y2="215" marker-end="url(#d-a)"/>
+          <line x1="370" y1="215" x2="254" y2="215" marker-end="url(#d-a)"/>
+          <line x1="825" y1="150" x2="825" y2="102" marker-end="url(#d-a)"/>
+          <line x1="825" y1="332" x2="825" y2="284" marker-end="url(#d-a)"/>
+          <line x1="480" y1="98" x2="480" y2="146" marker-end="url(#d-a)"/>
+          <polyline points="250,371 480,371 480,284" marker-end="url(#d-a)"/>
+        </g>
+        <g font-size="11.5">
+          <text x="648" y="205" text-anchor="middle" class="mu">handled by</text>
+          <text x="312" y="205" text-anchor="middle" class="mu">messages cite</text>
+          <text x="835" y="130" class="mu">uses</text>
+          <text x="835" y="312" class="mu">saved from</text>
+          <text x="490" y="128" class="mu">totals of</text>
+          <text x="364" y="361" text-anchor="middle" class="mu">entries point to</text>
+        </g>
+      </svg>
+    </div>
+    <figcaption>Messages are kept inside their conversation record, so opening a conversation is a single read.</figcaption>
+  </figure>
+</section>
+
+<section id="background">
+  <h2><span class="num">7</span>Always running in the background</h2>
+  <p class="sub">Work the server does on a timer, whether or not anyone clicks.</p>
+  <div class="tablewrap"><table>
+    <thead><tr><th>Job</th><th>How often</th><th>What it does</th></tr></thead>
+    <tbody>
+      <tr><td><b>Traffic simulator</b></td><td>Every 6 seconds</td><td>Picks one open conversation and moves it forward: a customer message or an AI reply written with that agent's current settings. Skips AI replies on conversations a supervisor owns.</td></tr>
+      <tr><td><b>New conversation</b></td><td>About every 42 seconds</td><td>Opens a new chat while fewer than 30 are open.</td></tr>
+      <tr><td><b>Resolve one</b></td><td>About every 48 seconds</td><td>Closes a calm, low-risk conversation, as an AI agent would.</td></tr>
+      <tr><td><b>Metric snapshot</b></td><td>About once a minute</td><td>Saves the current totals so the trend chart has history.</td></tr>
+      <tr><td><b>Metrics stream</b></td><td>Every 2 seconds, per open dashboard</td><td>Recomputes the dashboard and sends it. Stops when that browser disconnects.</td></tr>
+      <tr><td><b>Connection check</b></td><td>Every 30 seconds</td><td>Pings each browser and drops any that stopped answering.</td></tr>
+    </tbody>
+  </table></div>
+  <div class="note"><p>There is one simulator for the whole server. An earlier design started one per connected browser, so every extra open tab multiplied the traffic.</p></div>
+</section>
+
+<section id="risk">
+  <h2><span class="num">8</span>How risk is scored</h2>
+  <p class="sub">One function scores every conversation from 0 to 100. The dashboard, the conversation screen and the simulator all use it, so they cannot disagree.</p>
+  <h3>What goes in, and how much each part counts</h3>
+  <div class="weights">
+    <div><span>Customer sentiment</span><span class="bar" style="width:100%"></span><span class="v">36</span></div>
+    <div><span>AI confidence</span><span class="bar" style="width:66.7%"></span><span class="v">24</span></div>
+    <div><span>Time against the SLA</span><span class="bar" style="width:44.4%"></span><span class="v">16</span></div>
+    <div><span>Asked for a human</span><span class="bar" style="width:33.3%"></span><span class="v">12</span></div>
+    <div><span>Policy exception</span><span class="bar" style="width:27.8%"></span><span class="v">10</span></div>
+    <div><span>VIP customer</span><span class="bar" style="width:16.7%"></span><span class="v">6</span></div>
+    <div><span>Each repeat contact</span><span class="bar" style="width:16.7%"></span><span class="v">6</span></div>
+  </div>
+  <p style="margin-top:16px">The parts are added up and passed through an S-shaped curve that turns any total into a figure between 0 and 100. The curve was tuned so the five conversations in the design land close to their designed scores.</p>
+  <h3>What the score leads to</h3>
+  <div class="tablewrap"><table>
+    <thead><tr><th>Score</th><th>Label on screen</th><th>What follows</th></tr></thead>
+    <tbody>
+      <tr><td>90 to 100</td><td>Critical</td><td>Take over is recommended</td></tr>
+      <tr><td>70 to 89</td><td>High</td><td>Alert level becomes high at 80</td></tr>
+      <tr><td>50 to 69</td><td>Watch</td><td>Alert level becomes medium at 60. Counts as SLA at risk from 65</td></tr>
+      <tr><td>0 to 49</td><td>Stable</td><td>The AI continues alone</td></tr>
+    </tbody>
+  </table></div>
+  <p style="margin-top:14px">Separately, an agent's escalation thresholds can raise the alert on their own. Two limits crossed, or a customer asking for a human, makes the alert high whatever the score.</p>
+</section>
+
+<section id="frontend">
+  <h2><span class="num">9</span>How the frontend is put together</h2>
+  <p class="sub">The app is built in layers. Each layer makes something available to everything inside it.</p>
+  <div class="stack">
+    <div><b>Theme</b><span>Colours, spacing and type sizes taken from the Figma design. Every component reads from here.</span></div>
+    <div><b>Settings</b><span>Currency, names and preferences, remembered in the browser.</span></div>
+    <div><b>Live connection</b><span>Holds the one WebSocket. Reconnects by itself and passes each event to whichever parts asked for it.</span></div>
+    <div><b>Router</b><span>Decides which screen to show for the address in the browser.</span></div>
+    <div><b>Shared live data</b><span>The list of open conversations and agents, plus the actions every screen uses: take over, return, send, resolve.</span></div>
+    <div><b>Frame</b><span>Top bar with search, and the sidebar or mobile drawer.</span></div>
+    <div><b>Screen</b><span>Dashboard, Conversation, Agent configuration, Templates or Settings.</span></div>
+  </div>
+  <h3>What each screen is made of</h3>
+  <div class="tablewrap"><table>
+    <thead><tr><th>Screen</th><th>Building blocks</th></tr></thead>
+    <tbody>
+      <tr><td>Dashboard</td><td>Metric card, volume chart, queue health, critical signals, priority queue, supervisor feed</td></tr>
+      <tr><td>Conversation</td><td>Conversation list, message list, co-pilot card, reply composer, customer details, return to AI dialog, template picker</td></tr>
+      <tr><td>Agent configuration</td><td>Behaviour panel, presets menu, performance panel, simulation console, review and deploy dialogs</td></tr>
+      <tr><td>Templates</td><td>Template workspace, template card, template editor</td></tr>
+    </tbody>
+  </table></div>
+</section>
+
+<section id="hosted">
+  <h2><span class="num">10</span>The hosted version</h2>
+  <p class="sub">The live site is served as plain files with no server behind it. The screens are identical. What answers them is different.</p>
+  <figure>
+    <div class="scroll">
+      <svg viewBox="0 0 960 250" role="img" aria-label="Run locally, the screens call a server which uses a database. On the live site, the same screens call a data layer that runs inside the browser.">
+        <defs><marker id="h-a" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0 L10 5 L0 10 z" fill="var(--rest)"/></marker>
+        <marker id="h-b" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0 L10 5 L0 10 z" fill="var(--db)"/></marker></defs>
+        <text x="20" y="28" font-size="13" font-weight="700">Run locally</text>
+        <text x="510" y="28" font-size="13" font-weight="700">Live site</text>
+        <line x1="480" y1="12" x2="480" y2="238" stroke="var(--line)" stroke-width="1.5"/>
+        <g font-size="13">
+          <rect x="20" y="90" width="130" height="70" rx="4" fill="var(--soft)" stroke="var(--line)"/>
+          <text x="85" y="130" text-anchor="middle" font-weight="600">Screens</text>
+          <rect x="250" y="90" width="100" height="70" rx="4" fill="var(--soft)" stroke="var(--line)"/>
+          <text x="300" y="130" text-anchor="middle" font-weight="600">Server</text>
+          <rect x="390" y="90" width="76" height="70" rx="4" fill="var(--surface)" stroke="var(--db)" stroke-width="1.5"/>
+          <text x="428" y="130" text-anchor="middle" font-weight="600">MongoDB</text>
+          <line x1="154" y1="125" x2="246" y2="125" stroke="var(--rest)" stroke-width="2" marker-start="url(#h-a)" marker-end="url(#h-a)"/>
+          <text x="200" y="112" font-size="11.5" text-anchor="middle" class="mu">3 connections</text>
+          <line x1="354" y1="125" x2="386" y2="125" stroke="var(--db)" stroke-width="1.5" marker-start="url(#h-b)" marker-end="url(#h-b)"/>
+          <text x="85" y="184" font-size="11.5" text-anchor="middle" class="mu">in the browser</text>
+          <text x="358" y="184" font-size="11.5" text-anchor="middle" class="mu">on a machine</text>
+
+          <rect x="510" y="56" width="430" height="150" rx="6" fill="none" stroke="var(--line)" stroke-width="1.5"/>
+          <text x="526" y="80" font-size="11.5" class="mu">all inside the browser</text>
+          <rect x="530" y="96" width="130" height="70" rx="4" fill="var(--soft)" stroke="var(--line)"/>
+          <text x="595" y="136" text-anchor="middle" font-weight="600">Screens</text>
+          <rect x="760" y="96" width="160" height="70" rx="4" fill="var(--soft)" stroke="var(--accent)" stroke-width="1.5"/>
+          <text x="840" y="128" text-anchor="middle" font-weight="600">Data layer</text>
+          <text x="840" y="148" text-anchor="middle" font-size="11.5" class="mu">same logic, held in memory</text>
+          <line x1="664" y1="131" x2="756" y2="131" stroke="var(--rest)" stroke-width="2" marker-start="url(#h-a)" marker-end="url(#h-a)"/>
+          <text x="710" y="118" font-size="11.5" text-anchor="middle" class="mu">3 connections</text>
+        </g>
+      </svg>
+    </div>
+    <figcaption>The data layer answers the same REST addresses, sends the same WebSocket events and the same metrics stream. It reuses the server's risk model, co-pilot, simulator and sample data. Data resets when the page is reloaded.</figcaption>
+  </figure>
+</section>
+
+<section id="folders">
+  <h2><span class="num">11</span>Folder map</h2>
+  <p class="sub">Where each part of this document lives in the repository.</p>
+<pre class="tree">backend/
+  server.js            <span>starts everything: routes, database, simulator</span>
+  routes/              <span>one file per group of addresses in section 5</span>
+  services/            <span>analytics, co-pilot, evaluation, simulator</span>
+  utils/risk.js        <span>the risk score in section 8</span>
+  websocket/           <span>the hub and the per-browser connection handler</span>
+  models/              <span>the seven collections in section 6</span>
+frontend/src/
+  pages/               <span>the five screens</span>
+  components/          <span>the building blocks listed in section 9</span>
+  context/             <span>live connection, shared live data, settings</span>
+  hooks/               <span>voice input, templates, the one-second clock</span>
+  theme.js             <span>design tokens from Figma</span>
+  local/               <span>the data layer for the hosted version</span>
+testing/               <span>the 14 automated checks</span>
+docs/                  <span>this document, screenshots, full documentation</span></pre>
+</section>
+
+</div>
+<script>
+(function () {
+  var W = 940, LEFT = 180, TOP = 60, ROW = 62;
+  var KIND = {
+    rest: { stroke: 'var(--rest)', dash: '', w: 2 },
+    ws: { stroke: 'var(--ws)', dash: '8 5', w: 2 },
+    sse: { stroke: 'var(--sse)', dash: '2 5', w: 2, cap: 'round' },
+    db: { stroke: 'var(--db)', dash: '', w: 1.5 }
+  };
+  function esc(s) { return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;'); }
+  function seq(id, lanes, steps, label) {
+    var host = document.getElementById(id);
+    if (!host) return;
+    var xs = lanes.map(function (_, i) { return LEFT + i * (W - 2 * LEFT) / (lanes.length - 1); });
+    var H = TOP + steps.length * ROW + 14;
+    var o = [];
+    o.push('<svg viewBox="0 0 ' + W + ' ' + H + '" role="img" aria-label="' + esc(label) + '"><defs>');
+    Object.keys(KIND).forEach(function (k) {
+      o.push('<marker id="' + id + '-' + k + '" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0 0 L10 5 L0 10 z" fill="' + KIND[k].stroke + '"/></marker>');
+    });
+    o.push('</defs>');
+    xs.forEach(function (x, i) {
+      o.push('<line x1="' + x + '" y1="44" x2="' + x + '" y2="' + (H - 8) + '" stroke="var(--line)" stroke-width="1.5"/>');
+      o.push('<rect x="' + (x - 80) + '" y="10" width="160" height="34" rx="4" fill="var(--soft)" stroke="var(--line)"/>');
+      o.push('<text x="' + x + '" y="32" font-size="13" font-weight="700" text-anchor="middle">' + esc(lanes[i]) + '</text>');
+    });
+    steps.forEach(function (s, i) {
+      var y = TOP + i * ROW + 34;
+      if (s.result) {
+        o.push('<rect x="40" y="' + (y - 20) + '" width="' + (W - 80) + '" height="36" rx="4" fill="var(--surface)" stroke="' + (s.bad ? 'var(--bad)' : 'var(--good)') + '" stroke-width="1.5"/>');
+        o.push('<text x="' + (W / 2) + '" y="' + (y + 3) + '" font-size="13" font-weight="700" text-anchor="middle" fill="' + (s.bad ? 'var(--bad)' : 'var(--good)') + '">' + esc(s.t) + '</text>');
+        return;
+      }
+      o.push('<text x="16" y="' + (y + 4) + '" font-size="12" font-weight="700" text-anchor="middle" fill="var(--accent)">' + (i + 1) + '</text>');
+      if (s.a === s.b) {
+        var x = xs[s.a];
+        o.push('<rect x="' + (x - 135) + '" y="' + (y - 22) + '" width="270" height="' + (s.s ? 44 : 32) + '" rx="4" fill="var(--surface)" stroke="var(--line)" stroke-width="1.5"/>');
+        o.push('<text x="' + x + '" y="' + (y - (s.s ? 3 : -1)) + '" font-size="12.5" font-weight="600" text-anchor="middle">' + esc(s.t) + '</text>');
+        if (s.s) o.push('<text x="' + x + '" y="' + (y + 13) + '" font-size="11" text-anchor="middle" class="mu">' + esc(s.s) + '</text>');
+        return;
+      }
+      var k = KIND[s.k], x1 = xs[s.a], x2 = xs[s.b], dir = x2 > x1 ? 1 : -1, mid = (x1 + x2) / 2;
+      o.push('<line x1="' + (x1 + dir * 2) + '" y1="' + y + '" x2="' + (x2 - dir * 3) + '" y2="' + y + '" stroke="' + k.stroke + '" stroke-width="' + k.w + '"' +
+        (k.dash ? ' stroke-dasharray="' + k.dash + '"' : '') + (k.cap ? ' stroke-linecap="' + k.cap + '"' : '') + ' marker-end="url(#' + id + '-' + s.k + ')"/>');
+      o.push('<text x="' + mid + '" y="' + (y - 9) + '" font-size="' + (s.m ? 11.5 : 12.5) + '" font-weight="600" text-anchor="middle"' + (s.m ? ' class="m"' : '') + '>' + esc(s.t) + '</text>');
+      if (s.s) o.push('<text x="' + mid + '" y="' + (y + 17) + '" font-size="11" text-anchor="middle" class="mu">' + esc(s.s) + '</text>');
+    });
+    o.push('</svg>');
+    host.innerHTML = o.join('');
+  }
+
+  var BSD = ['Browser', 'Server', 'Database'];
+  seq('seq-dashboard', BSD, [
+    { a: 0, b: 1, k: 'rest', m: 1, t: 'GET /api/analytics/dashboard', s: 'ask for everything the dashboard shows' },
+    { a: 1, b: 2, k: 'db', t: 'read open conversations and agents' },
+    { a: 1, b: 1, t: 'score each conversation', s: 'then total the metrics, queues and signals' },
+    { a: 1, b: 0, k: 'rest', t: 'the full dashboard', s: 'the page is drawn' },
+    { a: 0, b: 0, t: 'wait for the first 2 second beat', s: 'so the page can finish loading first' },
+    { a: 0, b: 1, k: 'sse', m: 1, t: 'GET /api/analytics/stream', s: 'this connection stays open' },
+    { a: 1, b: 0, k: 'sse', t: 'metrics event', s: 'repeats every 2 seconds' },
+    { a: 0, b: 0, t: 'replace the numbers', s: 'status reads Live, with the age of the update' }
+  ], 'Dashboard load: one REST request draws the page, then a stream opens and sends metrics every 2 seconds.');
+
+  seq('seq-message', BSD, [
+    { a: 1, b: 1, t: 'simulator writes a customer message', s: 'one conversation every 6 seconds' },
+    { a: 1, b: 2, k: 'db', t: 'save message, update sentiment' },
+    { a: 1, b: 1, t: 'score the conversation again', s: 'compare with the agent\'s escalation limits' },
+    { a: 1, b: 0, k: 'ws', m: 1, t: 'message_update', s: 'the transcript grows' },
+    { a: 1, b: 0, k: 'ws', m: 1, t: 'conversation_updated', s: 'the queue row moves to its new rank' },
+    { a: 1, b: 0, k: 'ws', m: 1, t: 'alert', s: 'only when a limit was just crossed: a toast appears' }
+  ], 'A new message is saved, the conversation is scored again, and three events are pushed to the browser.');
+
+  seq('seq-takeover', BSD, [
+    { a: 0, b: 1, k: 'rest', m: 1, t: 'POST /api/intervene', s: 'the supervisor clicks Take over' },
+    { a: 1, b: 2, k: 'db', t: 'set the takeover flag on', s: 'status becomes escalated' },
+    { a: 1, b: 0, k: 'ws', m: 1, t: 'conversation_updated', s: 'every open screen shows who owns it' },
+    { a: 1, b: 1, t: 'simulator sees the flag', s: 'no more AI replies on this conversation' },
+    { a: 0, b: 1, k: 'rest', m: 1, t: 'POST /api/conversations/:id/messages', s: 'the supervisor sends a reply' },
+    { a: 1, b: 2, k: 'db', t: 'add the message to the transcript' },
+    { a: 0, b: 1, k: 'rest', m: 1, t: 'POST /api/intervene/release', s: 'Return to AI, with guidance notes' },
+    { a: 1, b: 2, k: 'db', t: 'switch the flag off, only if it is on', s: 'then add one handoff note' },
+    { a: 1, b: 0, k: 'ws', m: 1, t: 'conversation_updated', s: 'the AI resumes with the notes in view' }
+  ], 'Takeover sets a flag, the supervisor replies, and release switches the flag off and records one handoff note.');
+
+  var RACE = ['Request A', 'Database', 'Request B'];
+  seq('seq-race-before', RACE, [
+    { a: 0, b: 1, k: 'db', t: 'is a takeover active?' },
+    { a: 2, b: 1, k: 'db', t: 'is a takeover active?' },
+    { a: 1, b: 0, k: 'db', t: 'yes' },
+    { a: 1, b: 2, k: 'db', t: 'yes' },
+    { a: 0, b: 1, k: 'db', t: 'write handoff note' },
+    { a: 2, b: 1, k: 'db', t: 'write handoff note' },
+    { result: 1, bad: 1, t: 'Two handoff notes in the transcript' }
+  ], 'Before the fix: both requests read the flag as on, so both write a note.');
+  seq('seq-race-after', RACE, [
+    { a: 0, b: 1, k: 'db', t: 'switch off, only if on' },
+    { a: 1, b: 0, k: 'db', t: 'done, 1 record changed' },
+    { a: 0, b: 1, k: 'db', t: 'write handoff note' },
+    { a: 2, b: 1, k: 'db', t: 'switch off, only if on' },
+    { a: 1, b: 2, k: 'db', t: 'nothing to change' },
+    { a: 2, b: 2, t: 'answer 409, write nothing' },
+    { result: 1, t: 'One handoff note, every time' }
+  ], 'After the fix: the first request switches the flag off, the second finds nothing to change and writes nothing.');
+
+  seq('seq-template', BSD, [
+    { a: 0, b: 0, t: 'open the library over the chat', s: 'templates were loaded by GET /api/templates' },
+    { a: 0, b: 0, t: 'fill the blanks from the case', s: 'name, order number, refund amount' },
+    { a: 0, b: 0, t: 'preview redraws on every keystroke', s: 'filled values are highlighted' },
+    { a: 0, b: 0, t: 'Insert puts the text in the reply box', s: 'Send stays off while a blank is empty' },
+    { a: 0, b: 1, k: 'rest', m: 1, t: 'POST /api/conversations/:id/messages', s: 'carries the template id' },
+    { a: 1, b: 2, k: 'db', t: 'save message, add 1 to use count' },
+    { a: 1, b: 0, k: 'ws', m: 1, t: 'message_update, template_updated', s: 'transcript and library both update' }
+  ], 'Template use: filling and preview happen in the browser, and the server is called once when the reply is sent.');
+
+  seq('seq-deploy', BSD, [
+    { a: 0, b: 0, t: 'move the sliders', s: 'kept as a draft, the live agent is unchanged' },
+    { a: 0, b: 1, k: 'rest', m: 1, t: 'POST /api/agents/:id/evaluate', s: 'score the draft on five checks' },
+    { a: 0, b: 1, k: 'rest', m: 1, t: 'POST /api/agents/:id/simulate', s: 'replay a sample case with the draft' },
+    { a: 0, b: 0, t: 'review the comparison', s: 'each changed field, live against draft' },
+    { a: 0, b: 1, k: 'rest', m: 1, t: 'PATCH /api/agents/:id/config', s: 'deploy, with change notes' },
+    { a: 1, b: 2, k: 'db', t: 'check ranges, save, raise the version', s: 'the previous settings are kept' },
+    { a: 1, b: 0, k: 'ws', m: 1, t: 'agent_update', s: 'every screen shows the new version' },
+    { a: 1, b: 1, t: 'simulator reads the new settings', s: 'from its next 6 second beat' }
+  ], 'Deploy: the draft is evaluated and simulated first, then saved as a new version and announced to every screen.');
+})();
+</script>
+<!--ARTIFACT-END-->
+</body>
+</html>
